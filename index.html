@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>AI Archive</title>
+    <title>AI NEXUS | Intelligent Archive</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -375,7 +375,6 @@
 
     <!-- Общий Док для Десктопа -->
     <nav class="dock" id="desktopDock">
-        <!-- Кнопки дублируются или перемещаются скриптом при ресайзе, но для чистоты оставим статический рендер -->
         <button class="dock-btn active hover-target" onclick="filter('all', this)">All</button>
         <button class="dock-btn hover-target" onclick="filter('text', this)">Text</button>
         <button class="dock-btn hover-target" onclick="filter('image', this)">Image</button>
@@ -419,7 +418,8 @@
     </div>
 
     <script>
-        const apiKey = ""; 
+        // API-ключ предоставляется средой выполнения автоматически, если задано ""
+        const apiKey = "AIzaSyAObXRKViylQCfw-cWSy7bpwL6lPHjVtoQ"; 
 
         const tools = [
             { name: "ChatGPT 4o", abbr: "GPT", type: "text", hex: "#10a37f", url: "https://chat.openai.com", desc: "Универсальный интеллект от OpenAI для любых задач." },
@@ -473,7 +473,6 @@
         }
 
         function filter(type, btn) {
-            // Синхронизируем состояние кнопок во всех контейнерах (мобильном и десктопном)
             document.querySelectorAll(`.dock-btn`).forEach(b => {
                 if(b.innerText.toLowerCase() === type.toLowerCase() || (type === 'all' && b.innerText === 'All')) {
                     b.classList.add('active');
@@ -484,15 +483,18 @@
             render(type);
         }
 
-        async function fetchWithRetry(url, options, retries = 5, backoff = 1000) {
-            try {
-                const response = await fetch(url, options);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                return await response.json();
-            } catch (err) {
-                if (retries <= 0) throw err;
-                await new Promise(resolve => setTimeout(resolve, backoff));
-                return fetchWithRetry(url, options, retries - 1, backoff * 2);
+        // Реализация экспоненциальной задержки без логирования в консоль
+        async function fetchWithRetry(url, options, retries = 5) {
+            const delays = [1000, 2000, 4000, 8000, 16000];
+            for (let i = 0; i <= retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.ok) return await response.json();
+                    if (i === retries) throw new Error(`HTTP error! status: ${response.status}`);
+                } catch (err) {
+                    if (i === retries) throw err;
+                }
+                await new Promise(resolve => setTimeout(resolve, delays[i]));
             }
         }
 
@@ -519,12 +521,15 @@
             }`;
 
             try {
+                // Используем поддерживаемую модель gemini-2.5-flash-preview-09-2025
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
                 
                 const payload = {
                     contents: [{ parts: [{ text: input }] }],
                     systemInstruction: { parts: [{ text: systemPrompt }] },
-                    generationConfig: { responseMimeType: "application/json" }
+                    generationConfig: { 
+                        responseMimeType: "application/json" 
+                    }
                 };
 
                 const data = await fetchWithRetry(url, {
@@ -540,9 +545,9 @@
                 renderAIResult(jsonResponse);
 
             } catch (error) {
-                console.error(error);
+                // Дружелюбное сообщение об ошибке вместо alert()
                 resultBox.innerHTML = `<div style="color:#ff3333; margin-top:16px; font-size:0.8rem; border:1px solid #ff333333; padding:12px; border-radius:12px; background: rgba(255,0,0,0.05);">
-                    [ERROR] Ошибка системы. Попробуйте позже.
+                    [ERROR] Не удалось получить ответ от архитектора. Пожалуйста, попробуйте позже.
                 </div>`;
             } finally {
                 btn.disabled = false;
@@ -573,10 +578,14 @@
             lucide.createIcons();
             
             setTimeout(() => {
-                document.querySelector('.ai-body').scrollTo({
-                    top: document.querySelector('.json-card').offsetTop,
-                    behavior: 'smooth'
-                });
+                const body = document.querySelector('.ai-body');
+                const card = document.querySelector('.json-card');
+                if(body && card) {
+                    body.scrollTo({
+                        top: card.offsetTop,
+                        behavior: 'smooth'
+                    });
+                }
             }, 100);
         }
 
